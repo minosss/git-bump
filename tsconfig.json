@@ -1,0 +1,5 @@
+{
+    "extends": "@yme/tsconfig",
+    "include": ["src"],
+    "exclude": ["node_modules"]
+}

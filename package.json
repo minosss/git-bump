@@ -1,0 +1,42 @@
+{
+	"name": "@yme/git-bump",
+	"description": "bump your git project",
+	"version": "0.0.0",
+	"author": "mino",
+	"repository": "minosss/git-bump",
+	"license": "MIT",
+	"keywords": [
+		"git",
+		"semver",
+		"bump",
+		"version",
+		"release"
+	],
+	"main": "dist/index.js",
+	"bin": {
+		"git-bump": "bin/bump.js"
+	},
+	"files": [
+		"bin",
+		"dist"
+	],
+	"scripts": {
+		"build": "esbuild src/index.ts --target=node14 --outdir=dist --platform=node --bundle",
+		"prepublishOnly": "pnpm run build",
+		"dev": "node -r esbuild-register src/index.ts"
+	},
+	"dependencies": {
+		"semver": "^7.3.7"
+	},
+	"devDependencies": {
+		"@types/node": "^18.0.5",
+		"@types/semver": "^7.3.10",
+		"@yme/eslint-config-prettier": "^0.7.0",
+		"@yme/tsconfig": "^0.1.3",
+		"esbuild": "^0.14.49",
+		"esbuild-register": "^3.3.3",
+		"eslint": "^8.20.0",
+		"prettier": "^2.7.1",
+		"typescript": "^4.7.4"
+	}
+}

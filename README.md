@@ -15,7 +15,7 @@ Usage
 
 git bump [options] [release]
 
-# use server, default is patch
+# use semver
 git bump [major, premajor, minor, preminor, patch, prepatch, prerelease]
 
 # custom version

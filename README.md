@@ -2,6 +2,14 @@
 
 tired of update package version
 
+Install
+
+```sh
+pnpm -g add @yme/git-bump
+```
+
+Usage
+
 ```
 # git bump --help
 

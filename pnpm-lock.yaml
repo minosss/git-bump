@@ -3,6 +3,7 @@ lockfileVersion: 5.4
 specifiers:
   '@types/node': ^18.0.5
   '@types/semver': ^7.3.10
+  '@yme/argv': ^0.1.1
   '@yme/eslint-config-prettier': ^0.7.0
   '@yme/tsconfig': ^0.1.3
   esbuild: ^0.14.49
@@ -15,6 +16,7 @@ specifiers:
   typescript: ^4.7.4
 
 dependencies:
+  '@yme/argv': 0.1.1
   semver: 7.3.7
 
 devDependencies:
@@ -280,6 +282,11 @@ packages:
       '@typescript-eslint/types': 5.30.6
       eslint-visitor-keys: 3.3.0
     dev: true
+
+  /@yme/argv/0.1.1:
+    resolution: {integrity: sha512-gaYNNnZSxx6Y0UQpnvUBquQG9LAy434U1oFaO+5SgE4W9G7B9ByJcZ9EJsd4+QFHIDTToQ30DlrQ/HU8Kb6G5g==}
+    engines: {node: '>=14.16'}
+    dev: false
 
   /@yme/eslint-config-prettier/0.7.0_7wmdnazylordkmmp5xylrck47q:
     resolution: {integrity: sha512-6ys6El40nv2rYcVvFyH3QsHbFQB9JCx9nAq+4v7g8m5yqvD8Bw+a+eeNK7hwQLrxjrLhB1Mxr1oOJzZ7mT8WEA==}

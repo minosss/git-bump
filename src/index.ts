@@ -4,8 +4,8 @@ import {readdir} from 'node:fs/promises';
 import {existsSync} from 'node:fs';
 import {join} from 'node:path';
 import semver from 'semver';
+import parser from '@yme/argv';
 import {readPackage, writePackage} from './package';
-import {parser, toArray} from './parser';
 
 const PACKAGE_NAME = 'package.json';
 
@@ -43,11 +43,17 @@ function isWorkspace(cwd: string): boolean {
 	return existsSync(join(cwd, 'pnpm-workspace.yaml'));
 }
 
+function toArray(value: any): any[] {
+	return Array.isArray(value) ? value : [value];
+}
+
 export default async function main(args: string[]) {
 	const argv = parser(args);
 
 	if (!isClean() && !argv.dry && !argv.help) {
-		throw new Error(`git workspace is not clean, commit the changes or make stash`);
+		throw new Error(
+			`git workspace is not clean, commit the changes or make stash. run with --help see details`
+		);
 	}
 
 	const [release = 'help'] = argv._;
@@ -83,6 +89,7 @@ export default async function main(args: string[]) {
 
 	if (isWorkspace(cwd)) {
 		const packagesDirs = toArray(packagesContainer || 'packages');
+		console.log('found workspace packages');
 
 		// update packages
 		for (const packagesDir of packagesDirs) {
@@ -121,22 +128,28 @@ export default async function main(args: string[]) {
 	}
 	console.log(`Bump ${rootPkg.name ?? 'project'} from ${version} to ${nextVersion}`);
 
-	if (commit && !runDry) {
-		execSync('git add .', {stdio: 'inherit'});
-		execSync(`git commit -m "${message.replace('__VERSION__', nextVersion)}"`, {
-			stdio: 'inherit',
-		});
-	}
-	console.log(
-		`Commit message ${message.replace('__VERSION__', nextVersion)}, ${
-			runDry ? 'skip' : 'done'
-		}`
-	);
+	if (commit) {
+		if (!runDry) {
+			execSync('git add .', {stdio: 'inherit'});
+			execSync(`git commit -m "${message.replace('__VERSION__', nextVersion)}"`, {
+				stdio: 'inherit',
+			});
+		}
 
-	if (tag && !runDry) {
-		execSync(`git tag -a v${nextVersion} -m "v${nextVersion}"`, {stdio: 'inherit'});
+		console.log(
+			`Commit message ${message.replace('__VERSION__', nextVersion)}, ${
+				runDry ? 'skip' : 'done'
+			}`
+		);
 	}
-	console.log(`Tag v${nextVersion}, ${runDry ? 'skip' : 'done'}`);
+
+	if (tag) {
+		if (!runDry) {
+			execSync(`git tag -a v${nextVersion} -m "v${nextVersion}"`, {stdio: 'inherit'});
+		}
+
+		console.log(`Tag v${nextVersion}, ${runDry ? 'skip' : 'done'}`);
+	}
 
 	console.log(`You should push to origin by youself`);
 }

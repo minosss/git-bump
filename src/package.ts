@@ -11,5 +11,5 @@ export async function readPackage(filePath: string) {
 }
 
 export async function writePackage(filePath: string, data: any) {
-	return await writeFile(filePath, JSON.stringify(data, null, 2), {encoding: 'utf8'});
+	return await writeFile(filePath, JSON.stringify(data, null, 4), {encoding: 'utf8'});
 }

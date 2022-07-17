@@ -28,6 +28,7 @@
 		"dev": "node -r esbuild-register src/index.ts"
 	},
 	"dependencies": {
+		"@yme/argv": "^0.1.1",
 		"semver": "^7.3.7"
 	},
 	"devDependencies": {

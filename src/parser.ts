@@ -1,5 +1,5 @@
 function isNumberLike(val: string): boolean {
-	return /^[\d-]\d+(\.\d+)?$/.test(val);
+	return /^(-)?\d+(\.\d+)?$/.test(val);
 }
 
 export function toArray(value: any): any[] {
@@ -24,7 +24,9 @@ export function parser(args: string[]) {
 			const [_, key = '~.~', value = '~.~'] = DEFINE_REGEX.exec(arg) || [];
 
 			if (isNumberLike(value)) {
-				result[key] = Number.parseFloat(value);
+				const num = Number.parseFloat(value);
+				// if parse fails, fallback
+				result[key] = Number.isNaN(num) ? value : num;
 			} else {
 				// exists
 				if (result[key]) {

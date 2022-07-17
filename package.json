@@ -1,7 +1,7 @@
 {
 	"name": "@yme/git-bump",
 	"description": "bump your git project",
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"author": "mino",
 	"repository": "minosss/git-bump",
 	"license": "MIT",

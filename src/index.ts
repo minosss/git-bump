@@ -14,6 +14,9 @@ git-bump
 
 git bump [options] [release]
 
+# help
+git bump [help]
+
 # use server, default is patch
 git bump [major, premajor, minor, preminor, patch, prepatch, prerelease]
 
@@ -47,7 +50,7 @@ export default async function main(args: string[]) {
 		throw new Error(`git workspace is not clean, commit the changes or make stash`);
 	}
 
-	const [release = 'patch'] = argv._;
+	const [release = 'help'] = argv._;
 	const {
 		help = false,
 		commit = true,
@@ -57,7 +60,7 @@ export default async function main(args: string[]) {
 		packages: packagesContainer = 'packages',
 	} = argv;
 
-	if (help) {
+	if (help || release === 'help') {
 		console.log(HELP);
 		return;
 	}

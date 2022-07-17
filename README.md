@@ -1,6 +1,6 @@
 # git-bump [![v](https://img.shields.io/npm/v/@yme/git-bump?color=5755d9&label=)](https://www.npmjs.com/package/@yme/git-bump)
 
-tired of update package version
+tired of update package version. NO options here, you should know what you did, If you make a mistake, learn and fix it.
 
 Install
 
@@ -11,7 +11,7 @@ pnpm -g add @yme/git-bump
 Usage
 
 ```
-# git bump --help
+# git bump
 
 git bump [options] [release]
 

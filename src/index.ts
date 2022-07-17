@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 import {execSync} from 'node:child_process';
-import {readdir} from 'node:fs/promises';
+import {readdir, stat} from 'node:fs/promises';
 import {existsSync} from 'node:fs';
 import {join} from 'node:path';
 import semver from 'semver';
@@ -50,25 +50,25 @@ function toArray(value: any): any[] {
 export default async function main(args: string[]) {
 	const argv = parser(args);
 
-	if (!isClean() && !argv.dry && !argv.help) {
-		throw new Error(
-			`git workspace is not clean, commit the changes or make stash. run with --help see details`
-		);
-	}
-
 	const [release = 'help'] = argv._;
 	const {
-		help = false,
 		commit = true,
 		message = 'chore(release): v__VERSION__',
 		tag = true,
 		dry: runDry = false,
 		packages: packagesContainer = 'packages',
+		help,
 	} = argv;
 
 	if (help || release === 'help') {
 		console.log(HELP);
 		return;
+	}
+
+	if (!isClean() && !runDry) {
+		throw new Error(
+			`git workspace is not clean, commit the changes or make stash. run with --help see details`
+		);
 	}
 
 	const cwd = argv.cwd || process.cwd();
@@ -88,13 +88,31 @@ export default async function main(args: string[]) {
 	}
 
 	if (isWorkspace(cwd)) {
+		console.log();
+
 		const packagesDirs = toArray(packagesContainer || 'packages');
-		console.log('found workspace packages');
 
 		// update packages
 		for (const packagesDir of packagesDirs) {
 			const packagesPath = join(cwd, packagesDir);
-			const packages = await readdir(packagesPath, {});
+
+			console.log(`Scan ${packagesPath}`);
+
+			const fileOrDirs = await readdir(packagesPath, {});
+
+			// director only
+			const packages: string[] = [];
+			for (const fileOrDir of fileOrDirs) {
+				const info = await stat(join(packagesPath, fileOrDir));
+
+				if (info.isDirectory()) {
+					packages.push(fileOrDir);
+				}
+			}
+
+			if (packages.length > 0) {
+				console.log(`Found workspace packages: ${packages.join(', ')}`);
+			}
 
 			for (const pkgDir of packages) {
 				const pkgPath = join(packagesPath, pkgDir, PACKAGE_NAME);
@@ -105,20 +123,23 @@ export default async function main(args: string[]) {
 
 				try {
 					const pkg = await readPackage(pkgPath);
-
+					const prevVersion = pkg.version;
 					if (!runDry) {
 						pkg.version = nextVersion;
 						await writePackage(packagesPath, pkg);
 					}
+
 					console.log(
-						`Bump package ${pkg.name ?? pkgDir} from ${
-							pkg.version || version
-						} to ${nextVersion}`
+						`Bump package ${
+							pkg.name ?? pkgDir
+						} from ${prevVersion} to ${nextVersion}, ${runDry ? 'skip' : 'done'}`
 					);
 				} catch {
 					console.log(`something went wrong, skip ${pkgDir}`);
 				}
 			}
+
+			console.log();
 		}
 	}
 
@@ -126,7 +147,12 @@ export default async function main(args: string[]) {
 		rootPkg.version = nextVersion;
 		await writePackage(packagePath, rootPkg);
 	}
-	console.log(`Bump ${rootPkg.name ?? 'project'} from ${version} to ${nextVersion}`);
+	console.log(
+		`Bump ${rootPkg.name ?? 'project'} from ${version} to ${nextVersion}, ${
+			runDry ? 'skip' : 'done'
+		}`
+	);
+	console.log();
 
 	if (commit) {
 		if (!runDry) {
@@ -151,5 +177,6 @@ export default async function main(args: string[]) {
 		console.log(`Tag v${nextVersion}, ${runDry ? 'skip' : 'done'}`);
 	}
 
-	console.log(`You should push to origin by youself`);
+	console.log();
+	console.log(`Done, You should push to origin by youself`);
 }

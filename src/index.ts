@@ -1,11 +1,10 @@
-/* eslint-disable no-console */
 import {execSync} from 'node:child_process';
-import {readdir, stat} from 'node:fs/promises';
 import {existsSync} from 'node:fs';
-import {join} from 'node:path';
-import semver from 'semver';
+import {join, resolve} from 'node:path';
 import parser from '@yme/argv';
-import {readPackage, writePackage} from './package';
+import {readPackage, readPackages} from './package';
+import {bump} from './bump';
+import type {BumpInfo} from './bump';
 
 const PACKAGE_NAME = 'package.json';
 
@@ -23,6 +22,17 @@ git bump [major, premajor, minor, preminor, patch, prepatch, prerelease]
 # custom version
 git bump v1.2.3
 
+# single package
+git bump [options] [semver]
+
+# bump packages with same version
+# packages in the packages/ directory
+git bump [options] [semver]
+
+# independent version
+# must in a workspace
+git bump [options] [semver] --filter=@org/{like,this}
+
 Options
 
 --help			print this usage information
@@ -31,6 +41,8 @@ Options
 --message=		commit message, default is chore(release): v__VERSION__
 --tag			create a new tag, default is true
 --packages=		workspace packages, default is packages
+--filter=		filter packages by package's name
+				note: use filter in a workspace will enable independent mode
 
 `;
 
@@ -56,7 +68,8 @@ export default async function main(args: string[]) {
 		message = 'chore(release): v__VERSION__',
 		tag = true,
 		dry: runDry = false,
-		packages: packagesContainer = 'packages',
+		packages: packagesDirs = 'packages',
+		filter,
 		help,
 	} = argv;
 
@@ -73,69 +86,49 @@ export default async function main(args: string[]) {
 
 	const cwd = argv.cwd || process.cwd();
 
-	const packagePath = join(cwd, PACKAGE_NAME);
-	const rootPkg = await readPackage(packagePath);
+	// many packages
+	const monorepo = isWorkspace(cwd);
+	// package has independent version
+	const filters = toArray(filter).filter(Boolean);
+	const independent = monorepo && filters.length > 0;
+	//
+	const bumpInfos: BumpInfo[] = [];
+	const dirs = toArray(packagesDirs).filter(Boolean);
 
-	const version = rootPkg.version;
-
-	const nextVersion =
-		semver.valid(release) && semver.lt(version, release)
-			? release
-			: semver.inc(version, release as semver.ReleaseType);
-
-	if (!nextVersion) {
-		throw new Error(`invalid release version ${release}`);
-	}
-
-	if (isWorkspace(cwd)) {
-		console.log();
-
-		const packagesDirs = toArray(packagesContainer || 'packages');
+	if (monorepo) {
+		const canBump = (pkg: {name?: string; private?: boolean}) =>
+			!independent || filters.includes(pkg.name);
 
 		// update packages
-		for (const packagesDir of packagesDirs) {
-			const packagesPath = join(cwd, packagesDir);
-
-			console.log(`Scan ${packagesPath}`);
-
-			const fileOrDirs = await readdir(packagesPath, {});
-
-			// director only
-			const packages: string[] = [];
-			for (const fileOrDir of fileOrDirs) {
-				const info = await stat(join(packagesPath, fileOrDir));
-
-				if (info.isDirectory()) {
-					packages.push(fileOrDir);
-				}
-			}
-
-			if (packages.length > 0) {
-				console.log(`Found workspace packages: ${packages.join(', ')}`);
-			}
+		for (const dir of dirs) {
+			// !resolve cwd path
+			const packagesPath = resolve(cwd, dir);
+			// read packages
+			const packages = await readPackages(packagesPath);
 
 			for (const pkgDir of packages) {
 				const pkgPath = join(packagesPath, pkgDir, PACKAGE_NAME);
 
-				if (!existsSync(pkgPath)) {
-					continue;
-				}
+				// skip, if the package.json doesn't exist
+				if (!existsSync(pkgPath)) continue;
+
+				const pkg = await readPackage(pkgPath);
+
+				// filter
+				if (!canBump(pkg)) continue;
 
 				try {
-					const pkg = await readPackage(pkgPath);
-					const prevVersion = pkg.version;
-					if (!runDry) {
-						pkg.version = nextVersion;
-						await writePackage(packagesPath, pkg);
-					}
+					const bumpInfo = await bump(pkgPath, release, {dry: runDry});
 
-					console.log(
-						`Bump package ${
-							pkg.name ?? pkgDir
-						} from ${prevVersion} to ${nextVersion}, ${runDry ? 'skip' : 'done'}`
+					// for commit messages
+					bumpInfos.push(bumpInfo);
+
+					log(
+						`Bump package ${bumpInfo.name} from ${bumpInfo.preVersion} to ${bumpInfo.version}`,
+						runDry
 					);
 				} catch {
-					console.log(`something went wrong, skip ${pkgDir}`);
+					console.log(`something went wrong, skip ${pkg.name ?? pkgPath}`);
 				}
 			}
 
@@ -143,40 +136,63 @@ export default async function main(args: string[]) {
 		}
 	}
 
-	if (!runDry) {
-		rootPkg.version = nextVersion;
-		await writePackage(packagePath, rootPkg);
+	let rootBumpInfo: BumpInfo = {
+		name: 'project',
+		preVersion: '',
+		version: 'ersion',
+	};
+
+	if (!independent) {
+		const rootPath = join(cwd, PACKAGE_NAME);
+		rootBumpInfo = await bump(rootPath, release, {dry: runDry});
+
+		log(
+			`Bump ${rootBumpInfo.name ?? 'project'} from ${rootBumpInfo.preVersion} to ${
+				rootBumpInfo.version
+			}`,
+			runDry
+		);
+		console.log();
 	}
-	console.log(
-		`Bump ${rootPkg.name ?? 'project'} from ${version} to ${nextVersion}, ${
-			runDry ? 'skip' : 'done'
-		}`
-	);
-	console.log();
 
 	if (commit) {
+		const description = bumpInfos.map((info) => `${info.name} v${info.version}`).join('\n');
+		const commitCommand = independent
+			? `git commit -m "chore(release): bump ${dirs.join(',')}" -m $"${description}"`
+			: `git commit -m "${message.replace('__VERSION__', rootBumpInfo.version)}"`;
+
 		if (!runDry) {
 			execSync('git add .', {stdio: 'inherit'});
-			execSync(`git commit -m "${message.replace('__VERSION__', nextVersion)}"`, {
+			execSync(commitCommand, {
 				stdio: 'inherit',
 			});
 		}
 
-		console.log(
-			`Commit message ${message.replace('__VERSION__', nextVersion)}, ${
-				runDry ? 'skip' : 'done'
-			}`
-		);
+		log(commitCommand, runDry);
 	}
 
 	if (tag) {
-		if (!runDry) {
-			execSync(`git tag -a v${nextVersion} -m "v${nextVersion}"`, {stdio: 'inherit'});
+		if (independent) {
+			for (const info of bumpInfos) {
+				gitTag(`${info.name}@v${info.version}`, `${info.name}@v${info.version}`, runDry);
+			}
+		} else {
+			gitTag(`v${rootBumpInfo.version}`, `v${rootBumpInfo.version}`, runDry);
 		}
-
-		console.log(`Tag v${nextVersion}, ${runDry ? 'skip' : 'done'}`);
 	}
 
 	console.log();
 	console.log(`Done, You should push to origin by youself`);
+}
+
+function gitTag(tag: string, message: string, dry = false) {
+	const tagCommand = `git tag -a ${tag} -m "${message}"`;
+	if (!dry) {
+		execSync(tagCommand, {stdio: 'inherit'});
+	}
+	log(tagCommand, dry);
+}
+
+function log(message: string, dry = false) {
+	console.log(`${message}${dry ? ', skip' : ''}`);
 }

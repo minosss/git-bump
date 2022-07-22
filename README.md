@@ -11,15 +11,29 @@ pnpm -g add @yme/git-bump
 Usage
 
 ```
-# git bump
+git-bump
 
 git bump [options] [release]
 
-# use semver
+# help
+git bump [help]
+
+# use server, default is patch
 git bump [major, premajor, minor, preminor, patch, prepatch, prerelease]
 
 # custom version
 git bump v1.2.3
+
+# single package
+git bump [options] [semver]
+
+# bump packages with same version
+# packages in the packages/ directory
+git bump [options] [semver]
+
+# independent version
+# must in a workspace
+git bump [options] [semver] --filter=@org/{like,this}
 
 Options
 
@@ -29,5 +43,7 @@ Options
 --message=		commit message, default is chore(release): v__VERSION__
 --tag			create a new tag, default is true
 --packages=		workspace packages, default is packages
+--filter=		filter packages by package's name
+				note: use filter in a workspace will enable independent mode
 
 ```
